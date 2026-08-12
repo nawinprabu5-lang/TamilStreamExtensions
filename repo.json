@@ -1,0 +1,8 @@
+{
+  "name": "TamilStream Extensions",
+  "description": "Isaimini & IsaiDub Extensions for CloudStream",
+  "manifestVersion": 1,
+  "pluginLists": [
+    "https://raw.githubusercontent.com/nawinprabu5-lang/TamilStreamExtensions/builds/plugins.json"
+  ]
+}
