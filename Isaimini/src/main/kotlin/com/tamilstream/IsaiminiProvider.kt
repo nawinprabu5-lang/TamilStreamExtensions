@@ -221,14 +221,14 @@ class IsaiminiProvider : MainAPI() {
                     val quality = source.attr("label")
                     if (src.isNotBlank()) {
                         callback.invoke(
-                            ExtractorLink(
-                                source = name,
-                                name = "$name ${quality.ifBlank { "" }}".trim(),
-                                url = src,
-                                referer = playerUrl,
-                                quality = getQualityFromName(quality),
-                                isM3u8 = src.contains(".m3u8")
-                            )
+                            newExtractorLink(
+                                name,
+                                "$name ${quality.ifBlank { "" }}".trim(),
+                                src
+                            ) {
+                                this.referer = playerUrl
+                                this.quality = getQualityFromName(quality)
+                            }
                         )
                     }
                 }
@@ -238,14 +238,14 @@ class IsaiminiProvider : MainAPI() {
                 Regex("""(https?://[^\s"']+\.(?:m3u8|mp4)[^\s"']*)""").findAll(scriptContent).forEach { match ->
                     val streamUrl = match.groupValues[1]
                     callback.invoke(
-                        ExtractorLink(
-                            source = name,
-                            name = "$name Stream",
-                            url = streamUrl,
-                            referer = playerUrl,
-                            quality = Qualities.Unknown.value,
-                            isM3u8 = streamUrl.contains(".m3u8")
-                        )
+                        newExtractorLink(
+                            name,
+                            "$name Stream",
+                            streamUrl
+                        ) {
+                            this.referer = playerUrl
+                            this.quality = Qualities.Unknown.value
+                        }
                     )
                 }
             } catch (_: Exception) { }

@@ -1,6 +1,7 @@
 package com.tamilstream
 
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
@@ -433,22 +434,22 @@ class IsaiDubProvider : MainAPI() {
 
             // Extract quality from label
             val quality = when {
-                label.contains("1080p", true) -> Qualities.Q1080p.value
-                label.contains("720p", true) -> Qualities.Q720p.value
-                label.contains("480p", true) -> Qualities.Q480p.value
-                label.contains("360p", true) -> Qualities.Q360p.value
+                label.contains("1080p", true) -> Qualities.P1080.value
+                label.contains("720p", true) -> Qualities.P720.value
+                label.contains("480p", true) -> Qualities.P480.value
+                label.contains("360p", true) -> Qualities.P360.value
                 else -> Qualities.Unknown.value
             }
 
             callback.invoke(
-                ExtractorLink(
-                    source = name,
-                    name = "$name - $label".take(100),
-                    url = finalUrl,
-                    referer = mainUrl,
-                    quality = quality,
-                    isM3u8 = finalUrl.contains(".m3u8")
-                )
+                newExtractorLink(
+                    name,
+                    "$name - $label".take(100),
+                    finalUrl
+                ) {
+                    this.referer = mainUrl
+                    this.quality = quality
+                }
             )
         } catch (_: Exception) {
             // If redirect fails, try loadExtractor as fallback
