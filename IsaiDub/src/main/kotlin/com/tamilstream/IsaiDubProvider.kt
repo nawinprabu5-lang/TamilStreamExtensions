@@ -393,37 +393,121 @@ class IsaiDubProvider : MainAPI() {
     }
 
     // ═══════════════════════════════════════════════════════════
-    // Resolves a /download/page/{id}/ URL to find the actual
-    // dubpage.xyz download links
+    // Resolves a /download/page/{id}/ URL on isaidub.movie
+    // This page has links to dubpage.xyz
+    // Chain: isaidub → dubpage.xyz → dubmv.xyz → uptodub.ch
     // ═══════════════════════════════════════════════════════════
     private suspend fun resolveDownloadPage(url: String, label: String, callback: (ExtractorLink) -> Unit) {
         try {
             val doc = app.get(url, timeout = 30).document
 
-            // Extract file info
+            // Extract file info from this isaidub download page
             val fileName = doc.selectFirst("div.details:has(strong:contains(File Name))")
                 ?.text()?.replace("File Name:", "")?.trim() ?: label
             val fileSize = doc.selectFirst("div.details:has(strong:contains(File Size))")
                 ?.text()?.replace("File Size:", "")?.trim() ?: ""
 
-            // Get download server links from <div class="dlink">
+            val qualityLabel = "$fileName [$fileSize]"
+
+            // Get links from <div class="dlink"> — these go to dubpage.xyz
             doc.select("div.dlink a").forEach { a ->
                 val href = a.attr("href")
-                val serverLabel = a.text().trim()
                 if (href.isNotBlank()) {
-                    resolveDownloadLink(href, "$fileName [$fileSize] $serverLabel", callback)
+                    resolveDubpageLink(href, qualityLabel, callback)
                 }
             }
         } catch (_: Exception) { }
     }
 
     // ═══════════════════════════════════════════════════════════
-    // Resolves final download links (e.g., dubpage.xyz URLs)
-    // Follows redirects to get the actual video file URL
+    // Level 2: Scrapes dubpage.xyz/download/view/{id}
+    // This page contains links to dubmv.xyz/download/file/{id}
+    // ═══════════════════════════════════════════════════════════
+    private suspend fun resolveDubpageLink(url: String, label: String, callback: (ExtractorLink) -> Unit) {
+        try {
+            val doc = app.get(url, timeout = 30).document
+
+            // dubpage.xyz has <div class="dlink"> with links to dubmv.xyz
+            doc.select("div.dlink a").forEach { a ->
+                val href = a.attr("href")
+                if (href.isNotBlank()) {
+                    resolveDubmvLink(href, label, callback)
+                }
+            }
+        } catch (_: Exception) { }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Level 3: Scrapes dubmv.xyz/download/file/{id}
+    // This is the FINAL page with real download & stream links:
+    //   Download: dub.uptodub.ch/download.php?dl=...
+    //   Stream:   dub.onestream.today/stream/video/{id}
+    // ═══════════════════════════════════════════════════════════
+    private suspend fun resolveDubmvLink(url: String, label: String, callback: (ExtractorLink) -> Unit) {
+        try {
+            val doc = app.get(url, timeout = 30).document
+
+            // Extract quality from label
+            val quality = when {
+                label.contains("1080p", true) -> Qualities.P1080.value
+                label.contains("720p", true) -> Qualities.P720.value
+                label.contains("480p", true) -> Qualities.P480.value
+                label.contains("360p", true) -> Qualities.P360.value
+                else -> Qualities.Unknown.value
+            }
+
+            // Get ALL links from <div class="dlink"> — both download and stream
+            val allLinks = doc.select("div.dlink a")
+            var serverNum = 1
+
+            allLinks.forEach { a ->
+                val href = a.attr("href")
+                val linkText = a.text().trim()
+                if (href.isNotBlank()) {
+                    val serverType = when {
+                        linkText.contains("Watch", true) || href.contains("stream") ->
+                            "Stream"
+                        else -> "Download"
+                    }
+
+                    callback.invoke(
+                        newExtractorLink(
+                            name,
+                            "$name $serverType S$serverNum".take(100),
+                            href
+                        ) {
+                            this.referer = url
+                            this.quality = quality
+                        }
+                    )
+                    serverNum++
+                }
+            }
+        } catch (_: Exception) {
+            // Fallback: try loadExtractor
+            try {
+                loadExtractor(url, mainUrl, { }, callback)
+            } catch (_: Exception) { }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Legacy fallback: resolves direct links via redirect following
+    // Used when we get links that aren't in the dubpage chain
     // ═══════════════════════════════════════════════════════════
     private suspend fun resolveDownloadLink(url: String, label: String, callback: (ExtractorLink) -> Unit) {
+        // Check if it's a dubpage.xyz link — route through proper chain
+        if (url.contains("dubpage")) {
+            resolveDubpageLink(url, label, callback)
+            return
+        }
+        // Check if it's a dubmv.xyz link
+        if (url.contains("dubmv")) {
+            resolveDubmvLink(url, label, callback)
+            return
+        }
+
         try {
-            // Try to follow the redirect to get final URL
             val response = app.get(
                 url,
                 allowRedirects = true,
@@ -432,7 +516,6 @@ class IsaiDubProvider : MainAPI() {
             )
             val finalUrl = response.url
 
-            // Extract quality from label
             val quality = when {
                 label.contains("1080p", true) -> Qualities.P1080.value
                 label.contains("720p", true) -> Qualities.P720.value
@@ -452,7 +535,6 @@ class IsaiDubProvider : MainAPI() {
                 }
             )
         } catch (_: Exception) {
-            // If redirect fails, try loadExtractor as fallback
             try {
                 loadExtractor(url, mainUrl, { }, callback)
             } catch (_: Exception) { }
