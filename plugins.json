@@ -1,0 +1,44 @@
+[
+    {
+        "iconUrl": "https://isaidub.movie/favicon.png",
+        "fileHash": "sha256-a65c499e2e1f0df12d9b58a2aabdfa9a523e415ee97a65f26ee5badf5787b864",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/nawinprabu5-lang/TamilStreamExtensions",
+        "fileSize": 34201,
+        "status": 1,
+        "language": "ta",
+        "authors": [
+            "TamilStream"
+        ],
+        "tvTypes": [
+            "Movie",
+            "TvSeries"
+        ],
+        "version": 1,
+        "internalName": "IsaiDub",
+        "description": "IsaiDub - Tamil Dubbed Movies, Hollywood, Web Series in Tamil",
+        "url": "https://raw.githubusercontent.com/nawinprabu5-lang/TamilStreamExtensions/builds/IsaiDub.cs3",
+        "name": "IsaiDub"
+    },
+    {
+        "iconUrl": "https://isaimini.cfd/templates/isaimini/images/isaimini.png",
+        "fileHash": "sha256-89b82d3dbbc1713f3e437d60fd6670836bb52261ef4f35c449432ab956720bb4",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/nawinprabu5-lang/TamilStreamExtensions",
+        "fileSize": 22042,
+        "status": 1,
+        "language": "ta",
+        "authors": [
+            "TamilStream"
+        ],
+        "tvTypes": [
+            "Movie",
+            "TvSeries"
+        ],
+        "version": 1,
+        "internalName": "Isaimini",
+        "description": "Isaimini - Tamil, Bollywood, Hollywood movies and web series",
+        "url": "https://raw.githubusercontent.com/nawinprabu5-lang/TamilStreamExtensions/builds/Isaimini.cs3",
+        "name": "Isaimini"
+    }
+]
