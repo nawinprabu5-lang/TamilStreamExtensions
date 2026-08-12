@@ -112,26 +112,49 @@ class IsaiDubProvider : MainAPI() {
     }
 
     // ═══════════════════════════════════════════════════════════
-    // search: IsaiDub doesn't have a visible search bar on the
-    // main site. We search by scraping the A-Z index pages.
-    // Alternatively, use Google site: search
+    // search: IsaiDub has no search form. We scan multiple pages:
+    // 1. Daily updates (most recent movies)
+    // 2. Recent yearly pages (2026, 2025, 2024 — high hit rate)
+    // 3. A-Z index as fallback (may return 500 on some letters)
     // ═══════════════════════════════════════════════════════════
     override suspend fun search(query: String): List<SearchResponse> {
         val results = mutableListOf<SearchResponse>()
 
-        // Strategy 1: Try the daily updates page and filter
-        try {
-            val doc = app.get(
-                "$mainUrl/movie/tamil-dubbed-movies-download/",
-                timeout = 30
-            ).document
+        // Strategy 1: Scan daily updates page (first few pages)
+        for (page in 1..3) {
+            try {
+                val url = if (page == 1) "$mainUrl/movie/tamil-dubbed-movies-download/"
+                    else "$mainUrl/movie/tamil-dubbed-movies-download/?get-page=$page"
+                val doc = app.get(url, timeout = 30).document
 
-            doc.select("div.f").mapNotNull { it.toSearchResult() }
-                .filter { it.name.contains(query, ignoreCase = true) }
-                .let { results.addAll(it) }
-        } catch (_: Exception) { }
+                doc.select("div.f").mapNotNull { it.toSearchResult() }
+                    .filter { it.name.contains(query, ignoreCase = true) }
+                    .let { results.addAll(it) }
 
-        // Strategy 2: Search the A-Z index for the first letter
+                if (results.size >= 10) break
+            } catch (_: Exception) { break }
+        }
+
+        // Strategy 2: Scan recent yearly pages (most reliable)
+        if (results.size < 5) {
+            val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+            for (year in currentYear downTo (currentYear - 2)) {
+                try {
+                    val doc = app.get(
+                        "$mainUrl/tamil-$year-dubbed-movies/",
+                        timeout = 30
+                    ).document
+
+                    doc.select("div.f").mapNotNull { it.toSearchResult() }
+                        .filter { it.name.contains(query, ignoreCase = true) }
+                        .let { results.addAll(it) }
+
+                    if (results.size >= 10) break
+                } catch (_: Exception) { }
+            }
+        }
+
+        // Strategy 3: A-Z index fallback (may 500 on some letters)
         if (results.isEmpty() && query.isNotBlank()) {
             val firstChar = query.first().lowercaseChar()
             val indexChar = if (firstChar.isLetter()) firstChar.toString() else "0"
@@ -145,20 +168,6 @@ class IsaiDubProvider : MainAPI() {
                 doc.select("div.f").mapNotNull { it.toSearchResult() }
                     .filter { it.name.contains(query, ignoreCase = true) }
                     .let { results.addAll(it) }
-
-                // Also check additional pages
-                val maxPages = doc.select(".pagination a[title*='Page']").lastOrNull()
-                    ?.text()?.toIntOrNull() ?: 1
-
-                for (page in 2..minOf(maxPages, 5)) {
-                    val pageDoc = app.get(
-                        "$mainUrl/tamil-atoz-dubbed-movies/$indexChar/?get-page=$page",
-                        timeout = 30
-                    ).document
-                    pageDoc.select("div.f").mapNotNull { it.toSearchResult() }
-                        .filter { it.name.contains(query, ignoreCase = true) }
-                        .let { results.addAll(it) }
-                }
             } catch (_: Exception) { }
         }
 
