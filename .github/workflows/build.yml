@@ -56,6 +56,19 @@ jobs:
           cp **/build/*.cs3 ../builds/ 2>/dev/null || true
           cp build/plugins.json ../builds/ 2>/dev/null || true
 
+      - name: Generate Repo Manifest
+        run: |
+          cat << 'EOF' > builds/repo.json
+          {
+            "name": "TamilStream Extensions",
+            "description": "Isaimini & IsaiDub Extensions for CloudStream",
+            "manifestVersion": 1,
+            "pluginLists": [
+              "https://raw.githubusercontent.com/nawinprabu5-lang/TamilStreamExtensions/builds/plugins.json"
+            ]
+          }
+          EOF
+
       - name: Upload Extension Artifacts (.cs3)
         uses: actions/upload-artifact@v4
         with:
@@ -63,6 +76,7 @@ jobs:
           path: |
             builds/*.cs3
             builds/plugins.json
+            builds/repo.json
 
       - name: Commit & Push Builds to Repository Branch
         run: |
